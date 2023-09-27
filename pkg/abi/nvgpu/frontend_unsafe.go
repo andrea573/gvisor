@@ -14,10 +14,24 @@
 
 package nvgpu
 
-// Status codes, from src/common/sdk/nvidia/inc/nvstatuscodes.h.
-const (
-	NV_ERR_INVALID_ADDRESS  = 0x0000001e
-	NV_ERR_INVALID_ARGUMENT = 0x0000001f
-	NV_ERR_INVALID_LIMIT    = 0x0000002e
-	NV_ERR_NOT_SUPPORTED    = 0x00000056
-)
+import "unsafe"
+
+// GetPointer implements RmAllocParamType.GetPointer.
+func (n *NVOS21Parameters) GetPointer() uintptr {
+	return uintptr(unsafe.Pointer(n))
+}
+
+// GetPointer implements RmAllocParamType.GetPointer.
+func (n *NVOS21ParametersR535) GetPointer() uintptr {
+	return uintptr(unsafe.Pointer(n))
+}
+
+// GetPointer implements RmAllocParamType.GetPointer.
+func (n *NVOS64Parameters) GetPointer() uintptr {
+	return uintptr(unsafe.Pointer(n))
+}
+
+// GetPointer implements RmAllocParamType.GetPointer.
+func (n *NVOS64ParametersR535) GetPointer() uintptr {
+	return uintptr(unsafe.Pointer(n))
+}

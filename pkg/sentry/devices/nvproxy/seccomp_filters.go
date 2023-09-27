@@ -79,9 +79,15 @@ func Filters() seccomp.SyscallRules {
 				nonNegativeFD,
 				seccomp.EqualTo(frontendIoctlCmd(nvgpu.NV_ESC_RM_ALLOC, nvgpu.SizeofNVOS21Parameters)),
 			},
+			// Note that we don't need to add one for NVOS21ParametersR535, because
+			// SizeofNVOS21ParametersR535 == SizeofNVOS21Parameters. We test this.
 			{
 				nonNegativeFD,
 				seccomp.EqualTo(frontendIoctlCmd(nvgpu.NV_ESC_RM_ALLOC, nvgpu.SizeofNVOS64Parameters)),
+			},
+			{
+				nonNegativeFD,
+				seccomp.EqualTo(frontendIoctlCmd(nvgpu.NV_ESC_RM_ALLOC, nvgpu.SizeofNVOS64ParametersR535)),
 			},
 			{
 				nonNegativeFD,
@@ -110,6 +116,10 @@ func Filters() seccomp.SyscallRules {
 			{
 				nonNegativeFD,
 				seccomp.EqualTo(nvgpu.UVM_INITIALIZE),
+			},
+			{
+				nonNegativeFD,
+				seccomp.EqualTo(nvgpu.UVM_MM_INITIALIZE),
 			},
 			{
 				nonNegativeFD,

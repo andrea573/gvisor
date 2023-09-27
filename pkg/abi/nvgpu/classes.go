@@ -31,8 +31,6 @@ const (
 	FERMI_CONTEXT_SHARE_A            = 0x00009067
 	FERMI_VASPACE_A                  = 0x000090f1
 	KEPLER_CHANNEL_GROUP_A           = 0x0000a06c
-	VOLTA_USERMODE_A                 = 0x0000c361
-	VOLTA_CHANNEL_GPFIFO_A           = 0x0000c36f
 	TURING_USERMODE_A                = 0x0000c461
 	TURING_CHANNEL_GPFIFO_A          = 0x0000c46f
 	AMPERE_CHANNEL_GPFIFO_A          = 0x0000c56f
@@ -45,15 +43,8 @@ const (
 	AMPERE_COMPUTE_B                 = 0x0000c7c0
 	HOPPER_DMA_COPY_A                = 0x0000c8b5
 	ADA_COMPUTE_A                    = 0x0000c9c0
+	NV_CONFIDENTIAL_COMPUTE          = 0x0000cb33
 	HOPPER_COMPUTE_A                 = 0x0000cbc0
-)
-
-// Class handles for older generations that are not supported by the open source
-// driver. Volta was the last such generation. These are defined in files under
-// src/common/sdk/nvidia/inc/class/.
-const (
-	VOLTA_COMPUTE_A  = 0x0000c3c0
-	VOLTA_DMA_COPY_A = 0x0000c3b5
 )
 
 // NV0005_ALLOC_PARAMETERS is the alloc params type for NV01_EVENT_OS_EVENT,
@@ -230,7 +221,7 @@ type nv00f8Map struct {
 }
 
 // NV00F8_ALLOCATION_PARAMETERS is the alloc param type for NV_MEMORY_FABRIC,
-// from src/common/sdk/nvidia/inc/class/cl00f8.h
+// from src/common/sdk/nvidia/inc/class/cl00f8.h.
 //
 // +marshal
 type NV00F8_ALLOCATION_PARAMETERS struct {
@@ -239,4 +230,13 @@ type NV00F8_ALLOCATION_PARAMETERS struct {
 	PageSize   uint32
 	AllocFlags uint32
 	Map        nv00f8Map
+}
+
+// NV_CONFIDENTIAL_COMPUTE_ALLOC_PARAMS is the alloc param type for
+// NV_CONFIDENTIAL_COMPUTE, from src/common/sdk/nvidia/inc/class/clcb33.h.
+//
+// +marshal
+type NV_CONFIDENTIAL_COMPUTE_ALLOC_PARAMS struct {
+	Handle Handle
+	_      uint32
 }

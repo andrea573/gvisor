@@ -15,7 +15,7 @@
 // Package nvproxy implements proxying for the Nvidia GPU Linux kernel driver:
 // https://github.com/NVIDIA/open-gpu-kernel-modules.
 //
-// Supported Nvidia GPUs: T4, L4, A100, A10G, V100 and H100.
+// Supported Nvidia GPUs: T4, L4, A100, A10G and H100.
 package nvproxy
 
 import (
@@ -43,14 +43,21 @@ func Register(vfsObj *vfs.VirtualFilesystem, uvmDevMajor uint32) error {
 	case
 		"525.60.13",
 		"525.105.17",
-		"525.125.06":
+		"525.125.06",
+		"535.54.03",
+		"535.104.05":
 		log.Infof("Nvidia driver version: %s", version)
 	default:
 		return fmt.Errorf("unsupported Nvidia driver version: %s", version)
 	}
 
+	ioctlTable, err := buildIoctlTable(version)
+	if err != nil {
+		return err
+	}
 	nvp := &nvproxy{
-		objsLive: make(map[nvgpu.Handle]*object),
+		objsLive:   make(map[nvgpu.Handle]*object),
+		ioctlTable: ioctlTable,
 	}
 	for minor := uint32(0); minor <= nvgpu.NV_CONTROL_DEVICE_MINOR; minor++ {
 		if err := vfsObj.RegisterDevice(vfs.CharDevice, nvgpu.NV_MAJOR_DEVICE_NUMBER, minor, &frontendDevice{
@@ -93,8 +100,9 @@ func CreateIndexDevtmpfsFile(ctx context.Context, dev *devtmpfs.Accessor, minor 
 
 // +stateify savable
 type nvproxy struct {
-	objsMu   objsMutex `state:"nosave"`
-	objsLive map[nvgpu.Handle]*object
+	objsMu     objsMutex `state:"nosave"`
+	objsLive   map[nvgpu.Handle]*object
+	ioctlTable ioctlTable
 }
 
 // object tracks an object allocated through the driver.
