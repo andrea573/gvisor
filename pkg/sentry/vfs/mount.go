@@ -149,6 +149,21 @@ func (mnt *Mount) Options() MountOptions {
 	}
 }
 
+// setMountOptions sets mnt's opions to the given opts.
+//
+// Preconditions:
+//   - vfs.mountMu must be locked.
+func (mnt *Mount) setMountOptions(opts *MountOptions) error {
+	if opts == nil {
+		return nil
+	}
+	mnt.Flags = opts.Flags
+	if err := mnt.setReadOnlyLocked(opts.ReadOnly); err != nil {
+		return err
+	}
+	return nil
+}
+
 // MountFlags returns a bit mask that indicates mount options.
 func (mnt *Mount) MountFlags() uint64 {
 	mnt.vfs.lockMounts()
@@ -526,6 +541,19 @@ func (vfs *VirtualFilesystem) BindAt(ctx context.Context, creds *auth.Credential
 		return err
 	}
 	return nil
+}
+
+// RemountAt changes the mountflags and data of an existing mout without having to unmount and remount the filesystem.
+func (vfs *VirtualFilesystem) RemountAt(ctx context.Context, creds *auth.Credentials, pop *PathOperation, opts *MountOptions) error {
+	vd, err := vfs.GetDentryAt(ctx, creds, pop, &GetDentryOptions{})
+	if err != nil {
+		return err
+	}
+	defer vd.DecRef(ctx)
+	vfs.lockMounts()
+	defer vfs.unlockMounts(ctx)
+	mnt := vd.Mount()
+	return mnt.setMountOptions(opts)
 }
 
 // MountAt creates and mounts a Filesystem configured by the given arguments.
