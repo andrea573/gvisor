@@ -115,7 +115,7 @@ const (
 )
 
 // Instruction is a type alias for linux.BPFInstruction.
-// It adds a human-readable stringification function.
+// It adds a human-readable stringification and other helper functions.
 //
 // +marshal slice:InstructionSlice
 // +stateify savable
@@ -146,5 +146,64 @@ func Jump(code uint16, k uint32, jt, jf uint8) Instruction {
 		JumpIfTrue:  jt,
 		JumpIfFalse: jf,
 		K:           k,
+	}
+}
+
+// IsReturn returns true if `ins` is a return instruction.
+func (ins Instruction) IsReturn() bool {
+	return ins.OpCode&instructionClassMask == Ret
+}
+
+// IsJump returns true if `ins` is a jump instruction.
+func (ins Instruction) IsJump() bool {
+	return ins.OpCode&instructionClassMask == Jmp
+}
+
+// IsConditionalJump returns true if `ins` is a conditional jump instruction.
+func (ins Instruction) IsConditionalJump() bool {
+	return ins.IsJump() && ins.OpCode&jmpMask != Ja
+}
+
+// IsUnconditionalJump returns true if `ins` is a conditional jump instruction.
+func (ins Instruction) IsUnconditionalJump() bool {
+	return ins.IsJump() && ins.OpCode&jmpMask == Ja
+}
+
+// JumpOffset is a possible jump offset that an instruction may jump to.
+type JumpOffset struct {
+	// Type is the type of jump that an instruction may execute.
+	Type JumpType
+
+	// Offset is the number of instructions that the jump skips over.
+	Offset uint32
+}
+
+// JumpOffsets returns the set of instruction offsets that this instruction
+// may jump to. Returns a nil slice if this is not a jump instruction.
+func (ins Instruction) JumpOffsets() []JumpOffset {
+	if !ins.IsJump() {
+		return nil
+	}
+	if ins.IsConditionalJump() {
+		return []JumpOffset{
+			{JumpTrue, uint32(ins.JumpIfTrue)},
+			{JumpFalse, uint32(ins.JumpIfFalse)},
+		}
+	}
+	return []JumpOffset{{JumpDirect, ins.K}}
+}
+
+// ModifiesRegisterA returns true iff this instruction modifies the value
+// of the "A" register.
+func (ins Instruction) ModifiesRegisterA() bool {
+	switch ins.OpCode & instructionClassMask {
+	case Ld:
+		return true
+	case Alu:
+		return true
+	case Misc:
+		return ins.OpCode == Misc|Tax
+	default:
+		return false
 	}
 }
