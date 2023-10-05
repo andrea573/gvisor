@@ -1344,6 +1344,21 @@ func (s *Stack) FindRoute(id tcpip.NICID, localAddr, remoteAddr tcpip.Address, n
 
 	onlyGlobalAddresses := !header.IsV6LinkLocalUnicastAddress(localAddr) && !isLinkLocal
 
+	constructRouteWithLocalAddrFromAnyInterface := func(nic *nic, gateway tcpip.Address) *Route {
+		// +checklocksignore: this is only called within `FindRoute`, and `s.mu` is locked throughout.
+		for _, aNIC := range s.nics {
+			addressEndpoint := s.getAddressEP(aNIC, localAddr, remoteAddr, netProto)
+			if addressEndpoint == nil {
+				continue
+			}
+
+			if r := constructAndValidateRoute(netProto, addressEndpoint, aNIC /* localAddressNIC */, nic /* outgoingNIC */, gateway, localAddr, remoteAddr, s.handleLocal, multicastLoop); r != nil {
+				return r
+			}
+		}
+		return nil
+	}
+
 	// Find a route to the remote with the route table.
 	var chosenRoute tcpip.Route
 	if r := func() *Route {
@@ -1374,15 +1389,27 @@ func (s *Stack) FindRoute(id tcpip.NICID, localAddr, remoteAddr tcpip.Address, n
 				}
 			}
 
-			// If the stack has forwarding enabled and we haven't found a valid route
-			// to the remote address yet, keep track of the first valid route. We
-			// keep iterating because we prefer routes that let us use a local
-			// address that is assigned to the outgoing interface. There is no
-			// requirement to do this from any RFC but simply a choice made to better
-			// follow a strong host model which the netstack follows at the time of
-			// writing.
+			// If the stack has forwarding enabled, we haven't found a valid route to
+			// the remote address yet, and we are routing locally generated traffic,
+			// keep track of the first valid route. We keep iterating because we
+			// prefer routes that let us use a local address that is assigned to the
+			// outgoing interface. There is no requirement to do this from any RFC
+			// but simply a choice made to better follow a strong host model which
+			// the netstack follows at the time of writing.
+			//
+			// Note that for incoming traffic that we are forwarding (for which the
+			// NIC and local address are unspecified), we do not keep iterating, as
+			// there is no reason to prefer routes that let us use a local address
+			// when routing forwarded (as opposed to locally-generated) traffic.
+			locallyGenerated := (id != 0 || localAddr != tcpip.Address{})
 			if onlyGlobalAddresses && chosenRoute.Equal(tcpip.Route{}) && isNICForwarding(nic, netProto) {
-				chosenRoute = route
+				if locallyGenerated {
+					chosenRoute = route
+					continue
+				}
+				if r := constructRouteWithLocalAddrFromAnyInterface(nic, route.Gateway); r != nil {
+					return r
+				}
 			}
 		}
 
@@ -1422,15 +1449,8 @@ func (s *Stack) FindRoute(id tcpip.NICID, localAddr, remoteAddr tcpip.Address, n
 		if id == 0 {
 			// If an interface is not specified, try to find a NIC that holds the local
 			// address endpoint to construct a route.
-			for _, aNIC := range s.nics {
-				addressEndpoint := s.getAddressEP(aNIC, localAddr, remoteAddr, netProto)
-				if addressEndpoint == nil {
-					continue
-				}
-
-				if r := constructAndValidateRoute(netProto, addressEndpoint, aNIC /* localAddressNIC */, nic /* outgoingNIC */, gateway, localAddr, remoteAddr, s.handleLocal, multicastLoop); r != nil {
-					return r, nil
-				}
+			if r := constructRouteWithLocalAddrFromAnyInterface(nic, gateway); r != nil {
+				return r, nil
 			}
 		}
 	}
