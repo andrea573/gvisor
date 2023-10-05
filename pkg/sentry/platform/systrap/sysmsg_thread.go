@@ -103,9 +103,9 @@ func sysmsgThreadRules(stubStart uintptr) []bpf.Instruction {
 	rules = append(rules, []seccomp.RuleSet{
 		// Allow instructions from the sysmsg code stub, which is limited by one page.
 		{
-			Rules: seccomp.SyscallRules{
-				unix.SYS_FUTEX: {
-					{
+			Rules: seccomp.MakeSyscallRules(map[uintptr]seccomp.SyscallRule{
+				unix.SYS_FUTEX: seccomp.Or{
+					seccomp.PerArg{
 						seccomp.GreaterThan(stubStart),
 						seccomp.EqualTo(linux.FUTEX_WAKE),
 						seccomp.EqualTo(1),
@@ -114,39 +114,35 @@ func sysmsgThreadRules(stubStart uintptr) []bpf.Instruction {
 						seccomp.EqualTo(0),
 						seccomp.GreaterThan(stubStart), // rip
 					},
-					{
+					seccomp.PerArg{
 						seccomp.GreaterThan(stubStart),
 						seccomp.EqualTo(linux.FUTEX_WAIT),
-						seccomp.MatchAny{},
+						seccomp.AnyValue{},
 						seccomp.EqualTo(0),
 						seccomp.EqualTo(0),
 						seccomp.EqualTo(0),
 						seccomp.GreaterThan(stubStart), // rip
 					},
 				},
-				unix.SYS_RT_SIGRETURN: {
-					{
-						seccomp.MatchAny{},
-						seccomp.MatchAny{},
-						seccomp.MatchAny{},
-						seccomp.MatchAny{},
-						seccomp.MatchAny{},
-						seccomp.MatchAny{},
-						seccomp.GreaterThan(stubStart), // rip
-					},
+				unix.SYS_RT_SIGRETURN: seccomp.PerArg{
+					seccomp.AnyValue{},
+					seccomp.AnyValue{},
+					seccomp.AnyValue{},
+					seccomp.AnyValue{},
+					seccomp.AnyValue{},
+					seccomp.AnyValue{},
+					seccomp.GreaterThan(stubStart), // rip
 				},
-				unix.SYS_SCHED_YIELD: {
-					{
-						seccomp.MatchAny{},
-						seccomp.MatchAny{},
-						seccomp.MatchAny{},
-						seccomp.MatchAny{},
-						seccomp.MatchAny{},
-						seccomp.MatchAny{},
-						seccomp.GreaterThan(stubStart), // rip
-					},
+				unix.SYS_SCHED_YIELD: seccomp.PerArg{
+					seccomp.AnyValue{},
+					seccomp.AnyValue{},
+					seccomp.AnyValue{},
+					seccomp.AnyValue{},
+					seccomp.AnyValue{},
+					seccomp.AnyValue{},
+					seccomp.GreaterThan(stubStart), // rip
 				},
-			},
+			}),
 			Action: linux.SECCOMP_RET_ALLOW,
 		},
 	}...)
